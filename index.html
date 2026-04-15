@@ -1,365 +1,239 @@
-import { useState, useEffect, createContext, useContext } from "react";
+<h2 class="sr-only">동국대·충무로·동대입구 근처 점심 맛집</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f7f5;color:#1a1a1a}
 
-// ───────────────────────────────────────────
-// 임시 데이터 (나중에 Firebase로 교체)
-// ───────────────────────────────────────────
-const DEPARTMENTS = [
-  "교무부","연구부","학생부","진로진학부","창의체험부","인성교육부",
-  "과학정보부","도서관부","보건부","상담부","방과후부","특수교육부",
-  "국어과","수학과","영어과","사회과","역사과","도덕과",
-  "과학과","기술가정과","음악과","미술과","체육과","한문과",
-  "정보과","제1학년부","제2학년부","제3학년부","환경부","안전부",
-  "급식부","행정실","비서팀","교장실"
+.header{background:#fff;padding:1.25rem 1.5rem 0;border-bottom:1px solid #eee}
+.h-top{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1rem}
+.h-title{font-size:21px;font-weight:600;letter-spacing:-.3px}
+.h-sub{font-size:13px;color:#888;margin-top:2px}
+.rand-btn{padding:7px 16px;border-radius:8px;background:#1a1a1a;color:#fff;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:opacity .15s}
+.rand-btn:hover{opacity:.8}
+
+.tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:10px 16px;font-size:13px;font-weight:500;color:#888;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.tab.on{color:#1a1a1a;border-bottom-color:#1a1a1a}
+
+.body{padding:1.25rem 1.5rem}
+
+.rand-banner{display:none;align-items:center;gap:10px;background:#1a1a1a;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px}
+.rand-banner.show{display:flex}
+.rb-name{font-weight:600;font-size:15px}
+.rb-menu{color:#aaa;margin-top:1px}
+.rb-close{margin-left:auto;background:transparent;border:none;color:#888;font-size:16px;cursor:pointer;line-height:1}
+
+.sec{margin-bottom:2rem}
+.sec-label{display:inline-flex;align-items:center;gap:6px;margin-bottom:.75rem}
+.sec-name{font-size:13px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.sec-cnt{font-size:12px;color:#aaa;font-weight:400}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+
+.card{background:#fff;border-radius:12px;padding:14px 14px 12px;cursor:pointer;border:1.5px solid transparent;transition:border-color .15s}
+.card:hover{border-color:#ddd}
+.card.on{border-color:#1a1a1a}
+.cat-pill{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-bottom:8px}
+.c-name{font-size:15px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.c-menu{font-size:12px;color:#888;line-height:1.5;margin-bottom:10px}
+.c-foot{display:flex;align-items:center;gap:5px}
+.c-star{color:#f5a623;font-size:11px}
+.c-r{font-size:12px;color:#555;font-weight:500}
+.c-map{margin-left:auto;font-size:11px;font-weight:500;color:#1a1a1a;text-decoration:none;padding:3px 9px;border:1px solid #ddd;border-radius:6px;background:#f7f7f5;transition:background .12s}
+.c-map:hover{background:#ececec}
+
+.map-wrap{background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e8e8e8}
+.map-title{padding:12px 16px 0;font-size:14px;font-weight:600}
+#map{height:360px}
+
+.cat-colors{
+  --한식-bg:#e8f5e9;--한식-c:#2e7d32;
+  --고기-bg:#fce4ec;--고기-c:#c62828;
+  --탕-bg:#fff3e0;--탕-c:#e65100;
+  --일식-bg:#e3f2fd;--일식-c:#1565c0;
+  --중식-bg:#f3e5f5;--중식-c:#6a1b9a;
+  --분식-bg:#e0f2f1;--분식-c:#00695c;
+}
+</style>
+
+<div class="cat-colors">
+
+<div class="header">
+  <div class="h-top">
+    <div>
+      <div class="h-title">오늘 점심 뭐 먹지?</div>
+      <div class="h-sub">동국대·충무로·동대입구 근처 39곳</div>
+    </div>
+    <button class="rand-btn" onclick="pickRandom()">🎲 랜덤</button>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</div>
+
+<div class="body">
+  <div class="rand-banner" id="banner">
+    <div>
+      <div class="rb-name" id="bn"></div>
+      <div class="rb-menu" id="bm"></div>
+    </div>
+    <button class="rb-close" onclick="closeBanner()">✕</button>
+  </div>
+  <div id="sections"></div>
+  <div class="map-wrap">
+    <div class="map-title">지도</div>
+    <div id="map"></div>
+  </div>
+</div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const CATS=[
+  {k:'전체',  pill:'#f0f0f0', pc:'#555'},
+  {k:'한식',  pill:'#e8f5e9', pc:'#2e7d32'},
+  {k:'고기·구이',pill:'#fce4ec',pc:'#c62828'},
+  {k:'탕·찌개',pill:'#fff3e0',pc:'#e65100'},
+  {k:'일식',  pill:'#e3f2fd', pc:'#1565c0'},
+  {k:'중식',  pill:'#f3e5f5', pc:'#6a1b9a'},
+  {k:'분식',  pill:'#e0f2f1', pc:'#00695c'},
+];
+const CM={},PC={};
+CATS.forEach(c=>{CM[c.k]=c.pill;PC[c.k]=c.pc;});
+
+const DATA=[
+  {n:"스웨덴 곰탕",c:"탕·찌개",m:"소고기 곰탕·만두",r:4.9,lat:37.5629639,lng:126.9978029},
+  {n:"충무로 한양집",c:"한식",m:"해물·굴·냉면·만두",r:5.0,lat:37.5618099,lng:126.9923931},
+  {n:"맹산식당",c:"한식",m:"제육볶음·오징어볶음",r:4.2,lat:37.5611508,lng:127.0050083},
+  {n:"평강삼계탕",c:"탕·찌개",m:"삼계탕·전복죽",r:4.4,lat:37.5613385,lng:127.0057936},
+  {n:"남소영 가마솥",c:"한식",m:"부대찌개·보쌈·솥밥",r:4.2,lat:37.5618829,lng:127.0057009},
+  {n:"낙원의 소바",c:"일식",m:"소바·돈카츠",r:4.8,lat:37.5619642,lng:126.9982042},
+  {n:"Oidkin",c:"일식",m:"규동·우동·라멘",r:4.9,lat:37.5610455,lng:126.9980951},
+  {n:"팔팔식당",c:"일식",m:"카라아게·연어동",r:4.4,lat:37.5611439,lng:127.0051744},
+  {n:"멘추루 라멘",c:"일식",m:"시오라멘·아부라소바",r:4.9,lat:37.5634295,lng:126.9916538},
+  {n:"동방명주",c:"중식",m:"짜장면·짬뽕·탕수육",r:4.0,lat:37.5608897,lng:126.9924172},
+  {n:"복향원판점",c:"중식",m:"마라탕·꿔바로우·볶음밥",r:4.4,lat:37.5609081,lng:126.9982772},
+  {n:"강서",c:"중식",m:"짜장면·볶음밥·만두",r:4.1,lat:37.5610133,lng:126.9982993},
+  {n:"필동 닭칼국수",c:"한식",m:"닭칼국수·만두",r:4.1,lat:37.5601751,lng:126.9966401},
+  {n:"충무 칼국수",c:"한식",m:"칼국수·비빔국수",r:4.3,lat:37.5606612,lng:126.9968439},
+  {n:"만나손칼국수",c:"한식",m:"손칼국수·들깨칼국수",r:4.4,lat:37.5614077,lng:126.9985014},
+  {n:"정성순대 충무로점",c:"탕·찌개",m:"버섯순대국·순대전골",r:4.9,lat:37.5606875,lng:126.9977958},
+  {n:"용우동 동국대점",c:"분식",m:"우동·오므라이스",r:4.4,lat:37.5609231,lng:126.9980141},
+  {n:"놀앙돼지",c:"고기·구이",m:"제육볶음·오삼불고기·런치",r:4.3,lat:37.5615559,lng:127.0009157},
+  {n:"뚝보 돼지갈비 통고기",c:"고기·구이",m:"돼지갈비·무한리필 BBQ",r:4.2,lat:37.5617639,lng:126.991721},
+  {n:"놀부푸짐간",c:"고기·구이",m:"돼지갈비·볶음밥",r:4.6,lat:37.5609063,lng:126.9991003},
+  {n:"호반정",c:"탕·찌개",m:"설렁탕·비빔밥·국밥",r:4.4,lat:37.5623135,lng:127.0004619},
+  {n:"필동 부대찌개",c:"탕·찌개",m:"부대찌개",r:3.7,lat:37.5610113,lng:126.9975794},
+  {n:"온의미반",c:"한식",m:"돌솥밥·전복·해물",r:4.9,lat:37.5607951,lng:126.9951359},
+  {n:"충무로 쭈꾸미불고기",c:"한식",m:"쭈꾸미·오징어볶음",r:3.9,lat:37.5617223,lng:126.9921889},
+  {n:"충무로 청국장",c:"탕·찌개",m:"청국장·된장찌개·비빔밥",r:4.3,lat:37.5621431,lng:126.9956486},
+  {n:"온수반",c:"탕·찌개",m:"선짓국·쌀국수",r:4.7,lat:37.5600324,lng:126.9927418},
+  {n:"고기두목 충무로점",c:"고기·구이",m:"삼겹살·목살·항정살",r:4.8,lat:37.5623451,lng:126.9927837},
+  {n:"충무로2층집",c:"고기·구이",m:"삼겹살·차돌·런치",r:5.0,lat:37.5641892,lng:126.9924232},
+  {n:"충무로 식객 1호점",c:"고기·구이",m:"순대국·제육·갈비",r:4.2,lat:37.5641604,lng:126.9930294},
+  {n:"진심",c:"탕·찌개",m:"돼지국밥·고등어회",r:4.8,lat:37.5625641,lng:126.9940721},
+  {n:"대명해장",c:"탕·찌개",m:"곱창전골·해장국",r:5.0,lat:37.5608177,lng:126.9949198},
+  {n:"이남장 을지로 본점",c:"탕·찌개",m:"설렁탕·내장탕·도가니탕",r:4.1,lat:37.5666824,lng:126.9885944},
+  {n:"서울 곰탕",c:"탕·찌개",m:"돼지다리 곰탕·수육",r:4.4,lat:37.5625657,lng:127.0049441},
+  {n:"김치보시기",c:"탕·찌개",m:"김치찜·돈카츠·카레",r:4.5,lat:37.5615819,lng:127.0054375},
+  {n:"장충 쭈꾸미 양탯김치탕",c:"탕·찌개",m:"쭈꾸미탕·비빔밥",r:4.2,lat:37.5620632,lng:127.0060352},
+  {n:"장충동 진두부집",c:"한식",m:"두부비빔밥·두부전골",r:3.8,lat:37.5609162,lng:127.0053476},
+  {n:"일미정",c:"고기·구이",m:"갈비탕·숯불구이",r:4.4,lat:37.5609913,lng:127.0050138},
+  {n:"원두막",c:"한식",m:"이모카세·고등어조림",r:4.2,lat:37.564066,lng:126.9932078},
+  {n:"빠삼",c:"고기·구이",m:"버터숙성 삼겹살·야키소바",r:5.0,lat:37.5637533,lng:126.9954168},
+  {n:"도야집 을지로점",c:"고기·구이",m:"삼겹살·계란찜·물냉면",r:4.9,lat:37.5640599,lng:126.9920546},
 ];
 
-const MOCK_USERS = {
-  "admin@school.kr":    { pw: "admin1234", role: "admin",  name: "관리자(비서팀)" },
-  "dept1@school.kr":   { pw: "dept1234",  role: "dept",   name: "교무부",   deptIndex: 0 },
-  "dept2@school.kr":   { pw: "dept1234",  role: "dept",   name: "연구부",   deptIndex: 1 },
-  "dept3@school.kr":   { pw: "dept1234",  role: "dept",   name: "학생부",   deptIndex: 2 },
-};
+let active='전체', picked=-1, map, markers=new Array(DATA.length).fill(null);
 
-// ───────────────────────────────────────────
-// Context
-// ───────────────────────────────────────────
-const AuthCtx = createContext(null);
-const useAuth = () => useContext(AuthCtx);
+function nmap(p){return`https://map.naver.com/v5/search/${encodeURIComponent(p.n+' 충무로 서울')}`;}
 
-// ───────────────────────────────────────────
-// 스타일
-// ───────────────────────────────────────────
-const S = {
-  wrap: { fontFamily: "'Malgun Gothic', '맑은 고딕', sans-serif", minHeight: "100vh", background: "#f0f4f8" },
-  header: { background: "#1a3a5c", color: "#fff", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  headerTitle: { margin: 0, fontSize: 18, fontWeight: "bold" },
-  card: { background: "#fff", borderRadius: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", padding: 24, margin: 16 },
-  btn: (color="#1a3a5c") => ({ background: color, color: "#fff", border: "none", borderRadius: 6, padding: "8px 18px", cursor: "pointer", fontSize: 14, fontWeight: "bold" }),
-  input: { width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 6, fontSize: 14, boxSizing: "border-box", marginTop: 4 },
-  label: { fontSize: 13, color: "#555", fontWeight: "bold" },
-  badge: (done) => ({ display:"inline-block", padding:"2px 10px", borderRadius:12, fontSize:12, background: done?"#e6f4ea":"#fce8e6", color: done?"#2d7a3a":"#c0392b", fontWeight:"bold" }),
-  table: { width:"100%", borderCollapse:"collapse", fontSize:14 },
-  th: { background:"#1a3a5c", color:"#fff", padding:"10px 12px", textAlign:"left" },
-  td: { padding:"10px 12px", borderBottom:"1px solid #e0e0e0", verticalAlign:"top" },
-};
+function filtered(){return active==='전체'?DATA:DATA.filter(p=>p.c===active);}
 
-// ───────────────────────────────────────────
-// 로그인 페이지
-// ───────────────────────────────────────────
-function LoginPage({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [err, setErr] = useState("");
-
-  const handleLogin = () => {
-    const user = MOCK_USERS[email];
-    if (!user || user.pw !== pw) { setErr("이메일 또는 비밀번호가 올바르지 않습니다."); return; }
-    onLogin({ email, ...user });
-  };
-
-  return (
-    <div style={{ ...S.wrap, display:"flex", justifyContent:"center", alignItems:"center" }}>
-      <div style={{ ...S.card, width: 360, margin: 0 }}>
-        <h2 style={{ textAlign:"center", color:"#1a3a5c", marginTop:0 }}>🏫 교무위원회의 시스템</h2>
-        <p style={{ textAlign:"center", color:"#888", fontSize:13 }}>부서 계정으로 로그인하세요</p>
-        <div style={{ marginBottom:14 }}>
-          <label style={S.label}>이메일</label>
-          <input style={S.input} value={email} onChange={e=>setEmail(e.target.value)} placeholder="dept1@school.kr" />
-        </div>
-        <div style={{ marginBottom:14 }}>
-          <label style={S.label}>비밀번호</label>
-          <input style={S.input} type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="비밀번호 입력" onKeyDown={e=>e.key==="Enter"&&handleLogin()} />
-        </div>
-        {err && <p style={{ color:"red", fontSize:13 }}>{err}</p>}
-        <button style={{ ...S.btn(), width:"100%", padding:"10px" }} onClick={handleLogin}>로그인</button>
-        <div style={{ marginTop:16, fontSize:12, color:"#aaa", textAlign:"center" }}>
-          테스트: admin@school.kr / admin1234<br/>부서: dept1@school.kr / dept1234
-        </div>
-      </div>
-    </div>
-  );
+function renderTabs(){
+  document.getElementById('tabs').innerHTML=CATS.map(c=>
+    `<button class="tab${active===c.k?' on':''}" onclick="setTab('${c.k}')">${c.k}</button>`
+  ).join('');
 }
 
-// ───────────────────────────────────────────
-// 부서 입력 페이지
-// ───────────────────────────────────────────
-function DeptInputPage({ agendas, setAgendas }) {
-  const { user } = useAuth();
-  const deptName = user.name;
-  const myData = agendas[user.deptIndex] || { items: [] };
-
-  const [form, setForm] = useState({ title:"", content:"", manager:"", note:"" });
-  const [editing, setEditing] = useState(null);
-
-  const save = () => {
-    if (!form.title.trim()) { alert("안건명을 입력하세요."); return; }
-    const newItems = [...(myData.items || [])];
-    if (editing !== null) { newItems[editing] = form; setEditing(null); }
-    else newItems.push(form);
-    setAgendas(prev => ({ ...prev, [user.deptIndex]: { dept: deptName, items: newItems } }));
-    setForm({ title:"", content:"", manager:"", note:"" });
-  };
-
-  const del = (i) => {
-    if (!confirm("삭제하시겠습니까?")) return;
-    const newItems = myData.items.filter((_,idx)=>idx!==i);
-    setAgendas(prev => ({ ...prev, [user.deptIndex]: { dept: deptName, items: newItems } }));
-  };
-
-  const edit = (i) => { setForm(myData.items[i]); setEditing(i); };
-
-  return (
-    <div>
-      <div style={S.card}>
-        <h3 style={{ color:"#1a3a5c", marginTop:0 }}>📝 {deptName} — 안건 입력</h3>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-          <div style={{ gridColumn:"1/-1" }}>
-            <label style={S.label}>안건명 *</label>
-            <input style={S.input} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="안건명을 입력하세요" />
-          </div>
-          <div style={{ gridColumn:"1/-1" }}>
-            <label style={S.label}>주요 내용</label>
-            <textarea style={{ ...S.input, height:80, resize:"vertical" }} value={form.content} onChange={e=>setForm({...form,content:e.target.value})} placeholder="주요 내용을 입력하세요" />
-          </div>
-          <div>
-            <label style={S.label}>담당자</label>
-            <input style={S.input} value={form.manager} onChange={e=>setForm({...form,manager:e.target.value})} placeholder="담당자명" />
-          </div>
-          <div>
-            <label style={S.label}>비고</label>
-            <input style={S.input} value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="비고" />
-          </div>
-        </div>
-        <div style={{ marginTop:14, display:"flex", gap:8 }}>
-          <button style={S.btn()} onClick={save}>{editing!==null?"✏️ 수정 저장":"➕ 안건 추가"}</button>
-          {editing!==null && <button style={S.btn("#888")} onClick={()=>{setEditing(null);setForm({title:"",content:"",manager:"",note:""});}}>취소</button>}
-        </div>
+function renderSections(){
+  const cats=active==='전체'?CATS.slice(1).map(c=>c.k):[active];
+  document.getElementById('sections').innerHTML=cats.map(cat=>{
+    const items=DATA.filter(p=>p.c===cat);
+    if(!items.length)return'';
+    return`<div class="sec">
+      <div class="sec-label">
+        <span class="sec-name" style="color:${PC[cat]}">${cat}</span>
+        <span class="sec-cnt">${items.length}곳</span>
       </div>
-
-      <div style={S.card}>
-        <h3 style={{ color:"#1a3a5c", marginTop:0 }}>📋 입력된 안건 목록</h3>
-        {(!myData.items || myData.items.length===0)
-          ? <p style={{ color:"#aaa" }}>아직 입력된 안건이 없습니다.</p>
-          : <table style={S.table}>
-              <thead><tr>
-                <th style={S.th}>안건명</th><th style={S.th}>주요내용</th>
-                <th style={S.th}>담당자</th><th style={S.th}>비고</th><th style={S.th}>관리</th>
-              </tr></thead>
-              <tbody>
-                {myData.items.map((item,i)=>(
-                  <tr key={i}>
-                    <td style={S.td}>{item.title}</td>
-                    <td style={S.td}>{item.content}</td>
-                    <td style={S.td}>{item.manager}</td>
-                    <td style={S.td}>{item.note}</td>
-                    <td style={S.td}>
-                      <button style={{ ...S.btn("#e67e22"), marginRight:4, padding:"4px 10px" }} onClick={()=>edit(i)}>수정</button>
-                      <button style={{ ...S.btn("#e74c3c"), padding:"4px 10px" }} onClick={()=>del(i)}>삭제</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-        }
-      </div>
-    </div>
-  );
+      <div class="grid">${items.map(p=>{
+        const gi=DATA.indexOf(p);
+        return`<div class="card${picked===gi?' on':''}" id="c${gi}" onclick="pick(${gi})">
+          <div class="cat-pill" style="background:${CM[cat]};color:${PC[cat]}">${cat}</div>
+          <div class="c-name">${p.n}</div>
+          <div class="c-menu">${p.m}</div>
+          <div class="c-foot">
+            <span class="c-star">★</span>
+            <span class="c-r">${p.r.toFixed(1)}</span>
+            <a class="c-map" href="${nmap(p)}" target="_blank" onclick="event.stopPropagation()">지도 →</a>
+          </div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
 }
 
-// ───────────────────────────────────────────
-// 관리자 대시보드
-// ───────────────────────────────────────────
-function AdminDashboard({ agendas, setAgendas, onPrint }) {
-  const [selectedDept, setSelectedDept] = useState(null);
-  const [editForm, setEditForm] = useState(null);
-  const [editIdx, setEditIdx] = useState(null);
-
-  const completedCount = DEPARTMENTS.filter((_,i) => agendas[i]?.items?.length > 0).length;
-
-  const saveEdit = () => {
-    const newItems = [...agendas[selectedDept].items];
-    newItems[editIdx] = editForm;
-    setAgendas(prev => ({ ...prev, [selectedDept]: { ...prev[selectedDept], items: newItems } }));
-    setEditForm(null); setEditIdx(null);
-  };
-
-  const delItem = (deptIdx, itemIdx) => {
-    if (!confirm("삭제하시겠습니까?")) return;
-    const newItems = agendas[deptIdx].items.filter((_,i)=>i!==itemIdx);
-    setAgendas(prev => ({ ...prev, [deptIdx]: { ...prev[deptIdx], items: newItems } }));
-  };
-
-  return (
-    <div>
-      <div style={S.card}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
-          <div>
-            <h3 style={{ color:"#1a3a5c", margin:0 }}>📊 부서별 입력 현황</h3>
-            <p style={{ color:"#666", margin:"4px 0 0", fontSize:13 }}>
-              총 {DEPARTMENTS.length}개 부서 중 <strong style={{color:"#2d7a3a"}}>{completedCount}개</strong> 완료
-            </p>
-          </div>
-          <button style={S.btn("#27ae60")} onClick={onPrint}>🖨️ 보고서 출력</button>
-        </div>
-
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px,1fr))", gap:8, marginTop:16 }}>
-          {DEPARTMENTS.map((dept, i) => {
-            const done = agendas[i]?.items?.length > 0;
-            return (
-              <div key={i}
-                style={{ border:`1px solid ${done?"#a8d5b5":"#f5c6cb"}`, borderRadius:8, padding:"8px 12px", cursor:"pointer",
-                  background: selectedDept===i ? "#e8f0fe" : done?"#f0faf3":"#fff9f9" }}
-                onClick={()=>setSelectedDept(selectedDept===i?null:i)}>
-                <div style={{ fontSize:13, fontWeight:"bold", color:"#333" }}>{dept}</div>
-                <span style={S.badge(done)}>{done?`✅ ${agendas[i].items.length}건`:"⏳ 미입력"}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {selectedDept !== null && (
-        <div style={S.card}>
-          <h3 style={{ color:"#1a3a5c", marginTop:0 }}>📋 {DEPARTMENTS[selectedDept]} 안건 내용</h3>
-          {(!agendas[selectedDept]?.items?.length)
-            ? <p style={{ color:"#aaa" }}>입력된 안건이 없습니다.</p>
-            : agendas[selectedDept].items.map((item, i) => (
-              <div key={i}>
-                {editForm && editIdx===i
-                  ? <div style={{ background:"#f8f9fa", borderRadius:8, padding:12, marginBottom:10 }}>
-                      <input style={S.input} value={editForm.title} onChange={e=>setEditForm({...editForm,title:e.target.value})} placeholder="안건명" />
-                      <textarea style={{ ...S.input, height:60, marginTop:6 }} value={editForm.content} onChange={e=>setEditForm({...editForm,content:e.target.value})} />
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:6 }}>
-                        <input style={S.input} value={editForm.manager} onChange={e=>setEditForm({...editForm,manager:e.target.value})} placeholder="담당자" />
-                        <input style={S.input} value={editForm.note} onChange={e=>setEditForm({...editForm,note:e.target.value})} placeholder="비고" />
-                      </div>
-                      <div style={{ marginTop:8, display:"flex", gap:6 }}>
-                        <button style={S.btn()} onClick={saveEdit}>저장</button>
-                        <button style={S.btn("#888")} onClick={()=>{setEditForm(null);setEditIdx(null);}}>취소</button>
-                      </div>
-                    </div>
-                  : <div style={{ background:"#f8f9fa", borderRadius:8, padding:12, marginBottom:10, display:"flex", justifyContent:"space-between" }}>
-                      <div>
-                        <div style={{ fontWeight:"bold", marginBottom:4 }}>{item.title}</div>
-                        <div style={{ fontSize:13, color:"#555" }}>{item.content}</div>
-                        <div style={{ fontSize:12, color:"#888", marginTop:4 }}>담당: {item.manager} {item.note && `/ 비고: ${item.note}`}</div>
-                      </div>
-                      <div style={{ display:"flex", gap:6, alignItems:"flex-start" }}>
-                        <button style={{ ...S.btn("#e67e22"), padding:"4px 10px" }} onClick={()=>{setEditForm({...item});setEditIdx(i);}}>수정</button>
-                        <button style={{ ...S.btn("#e74c3c"), padding:"4px 10px" }} onClick={()=>delItem(selectedDept,i)}>삭제</button>
-                      </div>
-                    </div>
-                }
-              </div>
-            ))
-          }
-        </div>
-      )}
-    </div>
-  );
+function renderMarkers(){
+  if(!map)return;
+  markers.forEach(m=>m&&map.removeLayer(m));
+  DATA.forEach((p,i)=>{
+    const col=PC[p.c]||'#555';
+    const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22'><circle cx='11' cy='11' r='8' fill='${col}' stroke='white' stroke-width='2.5'/></svg>`;
+    const icon=L.divIcon({html:`<img src="data:image/svg+xml,${encodeURIComponent(svg)}"/>`,className:'',iconSize:[22,22],iconAnchor:[11,11]});
+    const m=L.marker([p.lat,p.lng],{icon}).addTo(map);
+    const pillBg=CM[p.c]||'#eee';
+    m.bindPopup(`<div style="min-width:160px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${p.n}</div>
+      <div style="display:inline-block;font-size:10px;font-weight:600;background:${pillBg};color:${col};padding:2px 7px;border-radius:4px;margin-bottom:6px">${p.c}</div>
+      <div style="font-size:12px;color:#666;margin-bottom:6px">${p.m}</div>
+      <div style="font-size:12px;color:#f5a623;margin-bottom:8px">★ ${p.r.toFixed(1)}</div>
+      <a href="${nmap(p)}" target="_blank" style="display:block;text-align:center;font-size:12px;font-weight:600;color:#fff;background:#1a1a1a;padding:6px;border-radius:7px;text-decoration:none">네이버 지도 →</a>
+    </div>`,{maxWidth:200});
+    m.on('click',()=>pick(i,false));
+    markers[i]=m;
+  });
 }
 
-// ───────────────────────────────────────────
-// 인쇄 미리보기
-// ───────────────────────────────────────────
-function PrintView({ agendas, meetingNo, meetingDate, onBack }) {
-  const filledDepts = DEPARTMENTS.map((dept,i)=>({ dept, items: agendas[i]?.items||[] })).filter(d=>d.items.length>0);
-
-  return (
-    <div style={{ padding:24 }}>
-      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-        <button style={S.btn("#888")} onClick={onBack}>← 돌아가기</button>
-        <button style={S.btn("#27ae60")} onClick={()=>window.print()}>🖨️ 인쇄</button>
-      </div>
-
-      <div id="print-area" style={{ background:"#fff", padding:32, maxWidth:800, margin:"0 auto", border:"1px solid #ddd" }}>
-        <h1 style={{ textAlign:"center", fontSize:22, marginBottom:4 }}>제 {meetingNo}회 교무위원회의 자료</h1>
-        <p style={{ textAlign:"center", color:"#555", marginBottom:24 }}>일시: {meetingDate}</p>
-
-        <table style={{ ...S.table, border:"1px solid #333" }}>
-          <thead>
-            <tr>
-              <th style={{ ...S.th, width:"15%", border:"1px solid #333", textAlign:"center" }}>부서명</th>
-              <th style={{ ...S.th, width:"30%", border:"1px solid #333" }}>안건명</th>
-              <th style={{ ...S.th, width:"35%", border:"1px solid #333" }}>주요 내용</th>
-              <th style={{ ...S.th, width:"10%", border:"1px solid #333" }}>담당자</th>
-              <th style={{ ...S.th, width:"10%", border:"1px solid #333" }}>비고</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filledDepts.length === 0
-              ? <tr><td colSpan={5} style={{ ...S.td, textAlign:"center", color:"#aaa" }}>입력된 안건이 없습니다.</td></tr>
-              : filledDepts.map((d,di) =>
-                  d.items.map((item, ii) => (
-                    <tr key={`${di}-${ii}`} style={{ pageBreakInside:"avoid" }}>
-                      {ii===0 && <td style={{ ...S.td, border:"1px solid #ccc", textAlign:"center", fontWeight:"bold", verticalAlign:"middle" }} rowSpan={d.items.length}>{d.dept}</td>}
-                      <td style={{ ...S.td, border:"1px solid #ccc" }}>{item.title}</td>
-                      <td style={{ ...S.td, border:"1px solid #ccc", whiteSpace:"pre-wrap" }}>{item.content}</td>
-                      <td style={{ ...S.td, border:"1px solid #ccc", textAlign:"center" }}>{item.manager}</td>
-                      <td style={{ ...S.td, border:"1px solid #ccc" }}>{item.note}</td>
-                    </tr>
-                  ))
-                )
-            }
-          </tbody>
-        </table>
-      </div>
-
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #print-area, #print-area * { visibility: visible; }
-          #print-area { position: fixed; top: 0; left: 0; width: 100%; }
-          tr { page-break-inside: avoid; }
-        }
-      `}</style>
-    </div>
-  );
+function pick(gi,scroll=true){
+  picked=gi;
+  renderSections();
+  const p=DATA[gi];
+  if(map){map.flyTo([p.lat,p.lng],17,{duration:.7});markers[gi]&&markers[gi].openPopup();}
+  if(scroll){const el=document.getElementById('c'+gi);el&&el.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 
-// ───────────────────────────────────────────
-// 메인 앱
-// ───────────────────────────────────────────
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [agendas, setAgendas] = useState({});
-  const [view, setView] = useState("main"); // main | print
-  const [meetingNo, setMeetingNo] = useState("1");
-  const [meetingDate, setMeetingDate] = useState(new Date().toLocaleDateString("ko-KR"));
-
-  if (!user) return <LoginPage onLogin={setUser} />;
-
-  if (view === "print") return (
-    <AuthCtx.Provider value={{ user }}>
-      <PrintView agendas={agendas} meetingNo={meetingNo} meetingDate={meetingDate} onBack={()=>setView("main")} />
-    </AuthCtx.Provider>
-  );
-
-  return (
-    <AuthCtx.Provider value={{ user }}>
-      <div style={S.wrap}>
-        <div style={S.header}>
-          <div>
-            <h1 style={S.headerTitle}>🏫 교무위원회의 자료 취합 시스템</h1>
-            <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>
-              제
-              <input value={meetingNo} onChange={e=>setMeetingNo(e.target.value)}
-                style={{ width:30, textAlign:"center", margin:"0 4px", border:"none", borderRadius:3, padding:"1px 4px" }} />
-              회 | 일시:
-              <input value={meetingDate} onChange={e=>setMeetingDate(e.target.value)}
-                style={{ width:140, margin:"0 0 0 4px", border:"none", borderRadius:3, padding:"1px 6px" }} />
-            </div>
-          </div>
-          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            <span style={{ fontSize:13, opacity:0.85 }}>{user.name}</span>
-            <button style={{ ...S.btn("#c0392b"), padding:"6px 12px" }} onClick={()=>setUser(null)}>로그아웃</button>
-          </div>
-        </div>
-
-        {user.role === "admin"
-          ? <AdminDashboard agendas={agendas} setAgendas={setAgendas} onPrint={()=>setView("print")} />
-          : <DeptInputPage agendas={agendas} setAgendas={setAgendas} />
-        }
-      </div>
-    </AuthCtx.Provider>
-  );
+function pickRandom(){
+  const arr=filtered();
+  if(!arr.length)return;
+  const p=arr[Math.floor(Math.random()*arr.length)];
+  const gi=DATA.indexOf(p);
+  const b=document.getElementById('banner');
+  document.getElementById('bn').textContent=p.n+' — ★'+p.r.toFixed(1);
+  document.getElementById('bm').textContent=p.m;
+  b.classList.add('show');
+  pick(gi);
 }
+
+function closeBanner(){document.getElementById('banner').classList.remove('show');}
+
+function setTab(k){active=k;picked=-1;closeBanner();renderTabs();renderSections();
+  if(map){const arr=filtered();if(arr.length){const lats=arr.map(p=>p.lat),lngs=arr.map(p=>p.lng);map.fitBounds([[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]],{padding:[30,30]});}}
+}
+
+window.addEventListener('load',()=>{
+  renderTabs();renderSections();
+  map=L.map('map',{center:[37.5618,126.9985],zoom:15});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(map);
+  renderMarkers();
+});
+</script>
